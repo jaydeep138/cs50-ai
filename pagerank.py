@@ -2,9 +2,12 @@ import os
 import random
 import re
 import sys
+from collections import defaultdict
+import numpy as np
 
 DAMPING = 0.85
 SAMPLES = 10000
+NOT_DAMPING = 1 - DAMPING
 
 def main():
     if len(sys.argv) != 2:
@@ -47,7 +50,7 @@ def crawl(directory):
     return pages
 
 
-def transition_model(corpus, page, damping_factor):
+def transition_model(corpus:dict, page, damping_factor):
     """
     Return a probability distribution over which page to visit next,
     given a current page.
@@ -56,6 +59,16 @@ def transition_model(corpus, page, damping_factor):
     linked to by `page`. With probability `1 - damping_factor`, choose
     a link at random chosen from all pages in the corpus.
     """
+    n = len(corpus.keys())
+    if len(corpus[page]) == 0:
+        return {page : 1/n for page in corpus.keys()}
+    
+    probabilities = {page : (1 - damping_factor)/n for page in corpus.keys()}
+    
+    for link in corpus[page]:
+        probabilities[link] += damping_factor / len(corpus[page])
+    
+    return probabilities
     raise NotImplementedError
 
 
@@ -68,10 +81,22 @@ def sample_pagerank(corpus, damping_factor, n):
     their estimated PageRank value (a value between 0 and 1). All
     PageRank values should sum to 1.
     """
+    count_of_pages = {page : 0 for page in corpus.keys()}
+    initial_page = list(corpus.keys())[random.randint(0,len(corpus.keys()) - 1)]
+    count_of_pages[initial_page] += 1
+    probabilities = transition_model(corpus, initial_page, damping_factor)
+    
+    for i in range(n - 1):
+        next_page = random.choices(list(corpus.keys()), [weight for keym,weight in probabilities.items()], k = 1)[0]
+        count_of_pages[next_page] += 1
+        initial_page = next_page
+        probabilities = transition_model(corpus, initial_page, damping_factor)
+    
+    return {page : count / n for page, count in count_of_pages.items()}
     raise NotImplementedError
 
 
-def iterate_pagerank(corpus, damping_factor):
+def iterate_pagerank(corpus:dict, damping_factor):
     """
     Return PageRank values for each page by iteratively updating
     PageRank values until convergence.
@@ -80,6 +105,24 @@ def iterate_pagerank(corpus, damping_factor):
     their estimated PageRank value (a value between 0 and 1). All
     PageRank values should sum to 1.
     """
+    n = len(corpus.keys())
+    probability = {page : 1/n for page in corpus.keys()}
+    incoming = {page : [] for page in corpus.keys()}
+    for page, links in corpus.items():
+        for link in links:
+            incoming[link].append(page)
+    for i in range(10000):
+        for page in corpus.keys():
+            probability[page] = (NOT_DAMPING / n) 
+            temp = 0
+            for link in incoming[page]:
+                if len(corpus[link]):
+                    temp += probability[link] / len(corpus[link])
+            temp *= damping_factor
+            probability[page] += temp
+            
+    return probability
+        
     raise NotImplementedError
 
 
